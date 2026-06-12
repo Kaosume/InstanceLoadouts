@@ -310,6 +310,7 @@ function addon:showLoadoutForInstance(instanceType, instance, forceShow)
         height = "auto",
         icon = addon.icon,
         title = "",
+        strata = "TOOLTIP",
         pageTitle = (function()
             if strfind(instanceType, "Encounter") then
                 local idStr = strsplit(" ", instanceType)
