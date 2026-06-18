@@ -241,7 +241,7 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                         dbLoadout[type] = value
                     end)
                 end
-                card:AddWidget(dropdown, -8, 34)
+                card:AddWidget(dropdown, -8, 36)
             else
                 local overrideKey = "Override Default " .. type
                 local toggle
@@ -285,7 +285,7 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                 end
 
                 card:AddWidget(toggle, nil, 26)
-                card:AddWidget(dropdown, -8, 34)
+                card:AddWidget(dropdown, -8, 36)
             end
 
             if isBossEncounter then
