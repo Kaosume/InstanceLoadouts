@@ -4,6 +4,13 @@ local C = addon.Components
 
 local changelogData = {
     {
+        version = "Version 3.4",
+        changes = {
+            "Added manual boss target detection for Raids (enable with \"/il config\" or by hitting the cogwheel in the top right of any Instance Loadouts window). This will create a popup of your current instance's bosses and get a regular reminder window about them",
+            "Re-added back timout on boss targetting",
+        }
+    },
+    {
         version = "Version 3.3",
         changes = {
             "Add Midnight Delves",

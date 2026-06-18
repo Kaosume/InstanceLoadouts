@@ -70,7 +70,8 @@ end
 function addon:generateGlobalDefaults()
     local global = {
         ["autoShowChangelog"] = true,
-        ["targetTimeout"] = 0,
+        ["targetTimeoutEnabled"] = false,
+        ["targetTimeout"] = 20,
         ["journalIDs"] = CopyTable(self.defaultJournalIDs),
     }
     return global
@@ -175,6 +176,18 @@ function addon:generateDefaults()
     return db
 end
 
+function addon:PLAYER_TARGET_CHANGED()
+    if not self.db.global.targetTimeoutEnabled then return end
+    local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
+    if instanceType ~= "raid" then return end
+    for _, raidInfo in ipairs(self.instanceGroups.Raid) do
+        if raidInfo.instanceID == instanceID then
+            self:checkIfTrackedTarget(instanceID, raidInfo.encounterIDs)
+            return
+        end
+    end
+end
+
 function addon:PLAYER_ENTERING_WORLD(isLogin, isReload)
     if not isLogin and not isReload then
         addon:UnregisterEvent("SPELL_CONFIRMATION_TIMEOUT")
@@ -219,6 +232,9 @@ function addon:InitData()
         C_Timer.After(1, function()
             self:PLAYER_ENTERING_WORLD(isLogin, isReload)
         end)
+    end)
+    self:RegisterEvent("PLAYER_TARGET_CHANGED", function()
+        self:PLAYER_TARGET_CHANGED()
     end)
     self:RegisterEvent("ACTIVE_DELVE_DATA_UPDATE", function()
         addon:checkIfIsTrackedInstance()
@@ -294,6 +310,14 @@ SlashCmdList["INSTANCELOADOUTS"] = function(msg)
     elseif command == "debug" or command == "d" then
         -- Force-show the reminder for the current instance even if nothing needs changing
         addon:checkIfIsTrackedInstance(true)
+    elseif command == "bosstest" or command == "bt" then
+        -- Manual test of boss selection UI
+        local raid = addon.instanceGroups.Raid[2]
+        if not raid then
+            addon:Print("No raid data loaded yet")
+        else
+            addon:showBossSelectionUI(raid.instanceID, raid.encounterIDs)
+        end
     elseif command == "testconfirm" or command == "tc" then
         local C = addon.Components
         C.ShowConfirm("This is a test confirm dialog.", function()

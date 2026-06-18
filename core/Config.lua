@@ -195,26 +195,25 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
     local dbLoadouts = self.db.char.loadouts
     local dbLoadout = dbLoadouts[instanceTypeValue][actualInstanceValue]
 
+    local savedScroll = host.inner and host.inner.scroller and host.inner.scroller.scrollFrame
+        and host.inner.scroller.scrollFrame:GetVerticalScroll()
+
     local inner = ResetInner(host)
     local scroller = C:CreateTabScroller(inner)
+    inner.scroller = scroller
 
     -- pre-size message cards so AddLabel measures wrapped text against the final width
     local cardWidth = math.max(120, host:GetWidth() - 24)
 
-    if strfind(instanceTypeValue, "Encounter") and actualInstanceValue ~= -1 then
-        local messageCard = C:CreateCard(scroller, "Boss Loadouts Unavailable")
+    local isBossEncounter = strfind(instanceTypeValue, "Encounter") and actualInstanceValue ~= -1
+    local bossLoadoutsEnabled = addon.db.global.targetTimeoutEnabled
+
+    if isBossEncounter then
+        local messageCard = C:CreateCard(scroller, "Automatic Boss Loadouts")
         messageCard:SetWidth(cardWidth)
         messageCard:AddLabel("Midnight's secret values prevent the addon from detecting which boss you are targeting, even outside of combat.", theme.text.muted)
-        messageCard:AddLabel("Only the Default loadout is available for raids.\n\nPlease select \"Default\" to configure raid settings.")
+        messageCard:AddLabel("You can enable manual boss selection in the options, accessible via the gear icon in the top right.")
         scroller:AddCard(messageCard)
-
-        local supportCard = C:CreateCard(scroller, "Support")
-        supportCard:SetWidth(cardWidth)
-        supportCard:AddLabel("If you have any ideas on how to get this working, please reach out on GitHub or Discord (@lolswirl)", theme.text.muted)
-        scroller:AddCard(supportCard)
-
-        scroller:Commit()
-        return
     end
 
     for _, type in ipairs(externalOrder) do
@@ -230,7 +229,7 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                     dropdown = C:CreateDropdown(card, nil, items, dbLoadout[type], function(value)
                         dbLoadout[type] = value
                         dbLoadout["Talents"] = -1
-                        addon:openConfig()
+                        addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                     end)
                 elseif type == "Talents" then
                     dropdown = C:CreateDropdown(card, nil, items, dbLoadout[type], function(value)
@@ -251,20 +250,20 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                 if type == "Specialization" then
                     toggle = C:CreateToggle(card, overrideKey, dbLoadout[overrideKey], function(checked)
                         dbLoadout[overrideKey] = checked
-                        addon:openConfig()
+                        addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                     end)
                     dropdown = C:CreateDropdown(card, nil, items,
                         dbLoadout[overrideKey] and dbLoadout[type] or dbLoadouts[instanceTypeValue][-1][type],
                         function(value)
                             dbLoadout[type] = value
                             dbLoadout["Talents"] = -1
-                            addon:openConfig()
+                            addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                         end)
                     dropdown:SetEnabled(dbLoadout[overrideKey])
                 elseif type == "Talents" then
                     toggle = C:CreateToggle(card, overrideKey, dbLoadout[overrideKey], function(checked)
                         dbLoadout[overrideKey] = checked
-                        addon:openConfig()
+                        addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                     end)
                     dropdown = C:CreateDropdown(card, nil, items,
                         dbLoadout[overrideKey] and dbLoadout[type] or dbLoadouts[instanceTypeValue][-1][type],
@@ -275,7 +274,7 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                 else
                     toggle = C:CreateToggle(card, overrideKey, dbLoadout[overrideKey], function(checked)
                         dbLoadout[overrideKey] = checked
-                        addon:openConfig()
+                        addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
                     end)
                     dropdown = C:CreateDropdown(card, nil, items,
                         dbLoadout[overrideKey] and dbLoadout[type] or dbLoadouts[instanceTypeValue][-1][type],
@@ -287,6 +286,10 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
 
                 card:AddWidget(toggle, nil, 26)
                 card:AddWidget(dropdown, -8, 34)
+            end
+
+            if isBossEncounter then
+                card:SetEnabled(bossLoadoutsEnabled)
             end
 
             scroller:AddCard(card)
@@ -352,6 +355,10 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
     end
 
     scroller:Commit()
+
+    if savedScroll and savedScroll > 0 then
+        scroller.scrollFrame:SetVerticalScroll(savedScroll)
+    end
 end
 
 ---Checks the talent manager for the effective specialization of a loadout

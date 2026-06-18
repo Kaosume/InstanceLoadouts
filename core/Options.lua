@@ -23,10 +23,35 @@ local function CreateChangelogOptions(scroller)
     scroller:AddCard(card)
 end
 
+---Creates the boss target detection options card
+---@param scroller table The scroll content to add the card to
+local function CreateBossTargetOptions(scroller)
+    local card = C:CreateCard(scroller, "Boss Target Detection")
+    card:SetWidth(395)
+
+    card:AddLabel("Manually pick a boss for loadout reminders when swapping to a boss target. Unfortunately, automatic selection is broken due to Midnight's secret value system.", nil, 13)
+
+    local timeoutSlider
+    local enableToggle = C:CreateToggle(card, "Enable", addon.db.global.targetTimeoutEnabled, function(checked)
+        addon.db.global.targetTimeoutEnabled = checked
+        timeoutSlider:SetEnabled(checked)
+    end)
+    card:AddWidget(enableToggle, nil, 30)
+
+    timeoutSlider = C:CreateSlider(card, "Target Check Timeout (0 for no timeout)", 0, 60, 1,
+        function() return addon.db.global.targetTimeout end,
+        function(value) addon.db.global.targetTimeout = value end)
+    timeoutSlider:SetEnabled(addon.db.global.targetTimeoutEnabled)
+    card:AddWidget(timeoutSlider, nil, 36)
+
+    scroller:AddCard(card)
+end
+
 ---Creates the import/export loadouts options card
 ---@param scroller table The scroll content to add the card to
 local function CreateImportExportOptions(scroller)
     local card = C:CreateCard(scroller, "Import/Export Loadouts")
+    card:SetWidth(395)
 
     card:AddLabel("Disabled for now", addon.Theme.text.muted)
 
@@ -94,7 +119,7 @@ end
 ---@param onCloseCallback function|nil Optional callback to execute when the window closes
 function addon:openOptions(onCloseCallback)
     local _, content = self.UI.AcquireWindow("Options", {
-        width = 400,
+        width = 425,
         height = 380,
         icon = addon.icon,
         onGear = function()
@@ -111,6 +136,7 @@ function addon:openOptions(onCloseCallback)
     local scroller = C:CreateTabScroller(content)
 
     CreateChangelogOptions(scroller)
+    CreateBossTargetOptions(scroller)
     CreateImportExportOptions(scroller)
     CreateCustomInstancesOptions(scroller)
     CreateConfigureLoadoutsOptions(scroller)

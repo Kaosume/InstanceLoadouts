@@ -313,6 +313,9 @@ function addon:showLoadoutForInstance(instanceType, instance, forceShow)
         strata = "TOOLTIP",
         pageTitle = (function()
             if strfind(instanceType, "Encounter") then
+                if instance ~= -1 then
+                    return self.ConvertIDToName[instance]
+                end
                 local idStr = strsplit(" ", instanceType)
                 local id = tonumber(idStr)
                 return self.ConvertIDToName[id]
@@ -362,6 +365,82 @@ function addon:showLoadoutForInstance(instanceType, instance, forceShow)
 
     if not specializationChange and not talentsChange and not gearsetChange and not addonsChange and not forceShow then
         win:Hide()
+    end
+end
+
+--Checks if a target check was done recently to avoid multiple popups
+---@return boolean True if within timeout
+function addon:checkUnitTimeout()
+    local timeout = self.db.global.targetTimeout
+    local currentTime = GetTime()
+
+    if self.lastTargetTime and (currentTime - self.lastTargetTime) < timeout then
+        return true
+    end
+
+    self.lastTargetTime = currentTime
+    return false
+end
+
+---Shows boss selection UI for the player to choose which boss they're targeting
+---@param instanceID number The instance ID
+---@param encounterIDs table The encounter IDs to check against
+function addon:showBossSelectionUI(instanceID, encounterIDs)
+    local dbLoadouts = self.db.char.loadouts
+
+    local win, content = self.UI.AcquireWindow("BossSelection", {
+        width = 300,
+        height = "auto",
+        icon = addon.icon,
+        title = "",
+        strata = "TOOLTIP",
+        pageTitle = "Select Current Boss",
+    })
+
+    local scroller = C:CreateTabScroller(content)
+    local card = C:CreateCard(scroller, nil)
+
+    for _, encounterInfo in ipairs(encounterIDs) do
+        local encounterName = self.ConvertIDToName[encounterInfo.encounterID] or ("Encounter " .. encounterInfo.encounterID)
+        local button = C:CreateButton(card, encounterName, {height = 24})
+        button:SetCallback(function()
+            if dbLoadouts[instanceID .. " Encounter"] and dbLoadouts[instanceID .. " Encounter"][encounterInfo.encounterID] then
+                local specializationSet = dbLoadouts[instanceID .. " Encounter"][encounterInfo.encounterID].Specialization
+                local overrideSpecializationSet = dbLoadouts[instanceID .. " Encounter"][encounterInfo.encounterID]["Override Default Specialization"]
+                if not overrideSpecializationSet then
+                    specializationSet = dbLoadouts[instanceID .. " Encounter"][-1].Specialization
+                end
+                if specializationSet ~= -1 then
+                    self:checkTalentManager(specializationSet)
+                end
+                win:Hide()
+                self:showLoadoutForInstance(instanceID .. " Encounter", encounterInfo.encounterID)
+            end
+        end)
+        card:AddWidget(button, nil, 24)
+    end
+
+    scroller:AddCard(card)
+    scroller:Commit(nil, win.FitToContent)
+end
+
+---Checks if target is a tracked raid boss
+---@param instanceID number The instance ID to check
+---@param encounterIDs table The encounter IDs to check against
+function addon:checkIfTrackedTarget(instanceID, encounterIDs)
+    if InCombatLockdown() then return end
+    if not encounterIDs then
+        return
+    end
+
+    if not UnitExists("target") or UnitIsDead("target") then return end
+
+    -- Check timeout first to avoid processing if recently checked
+    if self:checkUnitTimeout() then return end
+
+    -- If targeting a boss, show selection UI since we can't extract GUID/UnitName
+    if UnitIsBossMob("target") then
+        self:showBossSelectionUI(instanceID, encounterIDs)
     end
 end
 
