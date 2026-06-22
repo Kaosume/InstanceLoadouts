@@ -72,6 +72,7 @@ function addon:generateGlobalDefaults()
         ["autoShowChangelog"] = true,
         ["targetTimeoutEnabled"] = false,
         ["targetTimeout"] = 20,
+        ["migratedRaidDefaultOverrides"] = false,
         ["journalIDs"] = CopyTable(self.defaultJournalIDs),
     }
     return global
@@ -139,9 +140,13 @@ function addon:generateCharDefaults()
                     self.ConvertIDToName[encounterInfo.encounterID] = encounterInfo.encounterName
                     if encounterInfo.encounterID == -1 then
                         encounterTbl[encounterInfo.encounterID] = {
+                            ["Override Global Specialization"] = false,
                             ["Specialization"] = -1,
+                            ["Override Global Talents"] = false,
                             ["Talents"] = -1,
+                            ["Override Global Gearset"] = false,
                             ["Gearset"] = -1,
+                            ["Override Global Addons"] = false,
                             ["Addons"] = -1,
                         }
                     else
@@ -162,6 +167,14 @@ function addon:generateCharDefaults()
         end
         loadouts[instanceType] = instanceTbl
     end
+    loadouts.RaidGlobalDefault = {
+        [-1] = {
+            ["Specialization"] = -1,
+            ["Talents"] = -1,
+            ["Gearset"] = -1,
+            ["Addons"] = -1,
+        },
+    }
     return char
 end
 
@@ -215,6 +228,26 @@ function addon:PLAYER_ENTERING_WORLD(isLogin, isReload)
     end)
 end
 
+---One-time migration: raids whose Default loadout already has a real value
+---set should keep using it (rather than silently falling through to the new
+---"All Raids" global default), so mark them as overriding the global default.
+function addon:migrateRaidDefaultOverrides()
+    if self.db.global.migratedRaidDefaultOverrides then return end
+    self.db.global.migratedRaidDefaultOverrides = true
+
+    local loadouts = self.db.char.loadouts
+    for dbKey, dbValue in pairs(loadouts) do
+        if strfind(dbKey, "Encounter") and dbValue[-1] then
+            local raidDefault = dbValue[-1]
+            for _, field in ipairs({"Specialization", "Talents", "Gearset", "Addons"}) do
+                if raidDefault[field] and raidDefault[field] ~= -1 then
+                    raidDefault["Override Global " .. field] = true
+                end
+            end
+        end
+    end
+end
+
 -- Init data for the addon
 -- ChallengeMaps
 -- Battlegrounds
@@ -227,6 +260,7 @@ function addon:InitData()
     self:convertDB()
     local default = self:generateDefaults()
     self.db:RegisterDefaults(default)
+    self:migrateRaidDefaultOverrides()
 
     self:RegisterEvent("PLAYER_ENTERING_WORLD", function(event, isLogin, isReload)
         C_Timer.After(1, function()

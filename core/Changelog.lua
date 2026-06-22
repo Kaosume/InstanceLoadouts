@@ -6,6 +6,7 @@ local changelogData = {
     {
         version = "Version 3.4",
         changes = {
+            "Added an \"All Raids\" global default loadout selection, still able to be overridden by a raid-specific default or boss-specific loadout.",
             "Added manual boss target detection for Raids (enable with \"/il config\" or by hitting the cogwheel in the top right of any Instance Loadouts window). This will create a popup of your current instance's bosses and get a regular reminder window about them",
             "Re-added back timout on boss targetting",
             "Fixed config margins",

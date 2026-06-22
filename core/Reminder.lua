@@ -11,6 +11,27 @@ local isGarrison = {
     1159, -- Alliance Garrison lvl 3
 }
 
+---Resolves a raid encounter field through the boss -> raid default -> global
+---default override chain. The boss tier already resolved to the raid's own
+---Default value when it doesn't override; this only steps one tier further,
+---from the raid's Default down to the "All Raids" global default, gated by
+---the raid Default's own "Override Global X" flag.
+---@param dbLoadouts table The char.loadouts table
+---@param instanceType string The instance type (e.g. "2769 Encounter")
+---@param bossOverrides boolean Whether the boss entry itself overrides the raid default
+---@param value any The value already resolved from the raid/boss tier
+---@param field string The loadout field name (e.g. "Specialization")
+---@return any value The final resolved value
+local function WithGlobalRaidDefault(dbLoadouts, instanceType, bossOverrides, value, field)
+    if bossOverrides then return value end
+    if not strfind(instanceType, "Encounter") then return value end
+    local raidDefault = dbLoadouts[instanceType] and dbLoadouts[instanceType][-1]
+    if not raidDefault or raidDefault["Override Global " .. field] then return value end
+    local globalDefault = dbLoadouts.RaidGlobalDefault and dbLoadouts.RaidGlobalDefault[-1]
+    if not globalDefault then return value end
+    return globalDefault[field]
+end
+
 ---Creates a reminder section card showing either a status line or an action button
 ---@param scroller table The scroll content to add the card to
 ---@param title string The card title
@@ -80,6 +101,7 @@ function addon:createSpecializationFrame(parent, instanceType, instance)
         if not overrideSpecializationSet then
             specializationSet = dbLoadouts[instanceType][-1].Specialization
         end
+        specializationSet = WithGlobalRaidDefault(dbLoadouts, instanceType, overrideSpecializationSet, specializationSet, "Specialization")
         if specializationSet == -1 then
             section:SetStatus("Specialization not set", nil, theme.text.muted)
         elseif specializationSet ~= currentSpec then
@@ -137,6 +159,8 @@ function addon:createTalentsFrame(parent, instanceType, instance)
         if not overrideTalentSet then
             talentSet = dbLoadouts[instanceType][-1].Talents
         end
+        specializationSet = WithGlobalRaidDefault(dbLoadouts, instanceType, overrideSpecializationSet, specializationSet, "Specialization")
+        talentSet = WithGlobalRaidDefault(dbLoadouts, instanceType, overrideTalentSet, talentSet, "Talents")
 
         if talentSet == -1 then
             section:SetStatus("Talents not set", nil, theme.text.muted)
@@ -227,6 +251,7 @@ function addon:createGearsetFrame(parent, instanceType, instance)
         if gearSet == -1 or not overrideGearSet then
             gearSet = dbLoadouts[instanceType][-1].Gearset
         end
+        gearSet = WithGlobalRaidDefault(dbLoadouts, instanceType, overrideGearSet, gearSet, "Gearset")
         if gearSet == -1 then
             section:SetStatus("Gearset not set", nil, theme.text.muted)
         else
@@ -266,6 +291,7 @@ function addon:createAddonsFrame(parent, instanceType, instance)
         if addonSet == -1 or not overrideAddonSet then
             addonSet = dbLoadouts[instanceType][-1].Addons
         end
+        addonSet = WithGlobalRaidDefault(dbLoadouts, instanceType, overrideAddonSet, addonSet, "Addons")
         if addonSet == -1 then
             section:SetStatus("AddOns not set", nil, theme.text.muted)
         else

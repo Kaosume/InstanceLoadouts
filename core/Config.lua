@@ -206,6 +206,7 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
     local cardWidth = math.max(120, host:GetWidth() - 24)
 
     local isBossEncounter = strfind(instanceTypeValue, "Encounter") and actualInstanceValue ~= -1
+    local isRaidDefault = strfind(instanceTypeValue, "Encounter") and actualInstanceValue == -1
     local bossLoadoutsEnabled = addon.db.global.targetTimeoutEnabled
 
     if isBossEncounter then
@@ -223,7 +224,51 @@ function addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
             local card = C:CreateCard(scroller, type)
             local items = BuildDropdownItems(info)
 
-            if actualInstanceValue == -1 then
+            if isRaidDefault then
+                local overrideKey = "Override Global " .. type
+                local globalDefault = dbLoadouts.RaidGlobalDefault[-1]
+                local toggle, dropdown
+
+                if type == "Specialization" then
+                    toggle = C:CreateToggle(card, overrideKey, dbLoadout[overrideKey], function(checked)
+                        dbLoadout[overrideKey] = checked
+                        addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
+                    end)
+                    dropdown = C:CreateDropdown(card, nil, items,
+                        dbLoadout[overrideKey] and dbLoadout[type] or globalDefault[type],
+                        function(value)
+                            dbLoadout[type] = value
+                            dbLoadout["Talents"] = -1
+                            addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
+                        end)
+                    dropdown:SetEnabled(dbLoadout[overrideKey])
+                elseif type == "Talents" then
+                    toggle = C:CreateToggle(card, overrideKey, dbLoadout[overrideKey], function(checked)
+                        dbLoadout[overrideKey] = checked
+                        addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
+                    end)
+                    dropdown = C:CreateDropdown(card, nil, items,
+                        dbLoadout[overrideKey] and dbLoadout[type] or globalDefault[type],
+                        function(value)
+                            dbLoadout[type] = value
+                        end)
+                    dropdown:SetEnabled(dbLoadout[overrideKey])
+                else
+                    toggle = C:CreateToggle(card, overrideKey, dbLoadout[overrideKey], function(checked)
+                        dbLoadout[overrideKey] = checked
+                        addon:populateOptionsArea(host, instanceTypeValue, instanceValue)
+                    end)
+                    dropdown = C:CreateDropdown(card, nil, items,
+                        dbLoadout[overrideKey] and dbLoadout[type] or globalDefault[type],
+                        function(value)
+                            dbLoadout[type] = value
+                        end)
+                    dropdown:SetEnabled(dbLoadout[overrideKey])
+                end
+
+                card:AddWidget(toggle, nil, 26)
+                card:AddWidget(dropdown, -8, 36)
+            elseif actualInstanceValue == -1 then
                 local dropdown
                 if type == "Specialization" then
                     dropdown = C:CreateDropdown(card, nil, items, dbLoadout[type], function(value)
@@ -471,6 +516,9 @@ local function BuildTypeContent(host, instanceTypeValue)
     optionsHost:SetPoint("BOTTOMRIGHT", inner, "BOTTOMRIGHT", -pad, pad)
 
     local instances = {}
+    if instanceTypeValue == "Raid" then
+        table.insert(instances, {id = "global", text = "All Raids"})
+    end
     for _, instanceInfo in pairs(addon.instanceGroups[instanceTypeValue]) do
         if instanceInfo.instanceID then
             table.insert(instances, {id = instanceInfo.instanceID, text = instanceInfo.instanceName})
@@ -482,7 +530,17 @@ local function BuildTypeContent(host, instanceTypeValue)
     instancePanel:SetItems(instances, addon.ConfigView.instance, function(instanceValue)
         addon.ConfigView.instance = instanceValue
 
-        if instanceTypeValue == "Raid" then
+        if instanceTypeValue == "Raid" and instanceValue == "global" then
+            if middlePanel then
+                middlePanel:SetItems({{id = -1, text = "Global"}}, -1, function()
+                    EnsureLoadout("RaidGlobalDefault", -1)
+                    addon:populateOptionsArea(optionsHost, "RaidGlobalDefault", -1)
+                end)
+            else
+                EnsureLoadout("RaidGlobalDefault", -1)
+                addon:populateOptionsArea(optionsHost, "RaidGlobalDefault", -1)
+            end
+        elseif instanceTypeValue == "Raid" then
             PopulateEncounterList(middlePanel, optionsHost, instanceTypeValue, instanceValue)
         elseif instanceTypeValue == "Dungeon" then
             PopulateDungeonList(middlePanel, optionsHost, instanceTypeValue, instanceValue)
