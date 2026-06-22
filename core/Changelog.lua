@@ -10,6 +10,7 @@ local changelogData = {
             "Added manual boss target detection for Raids (enable with \"/il config\" or by hitting the cogwheel in the top right of any Instance Loadouts window). This will create a popup of your current instance's bosses and get a regular reminder window about them",
             "Re-added back timout on boss targetting",
             "Fixed config margins",
+            "All open windows now close on combat start"
         }
     },
     {

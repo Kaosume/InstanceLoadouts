@@ -270,6 +270,11 @@ function addon:InitData()
     self:RegisterEvent("PLAYER_TARGET_CHANGED", function()
         self:PLAYER_TARGET_CHANGED()
     end)
+    self:RegisterEvent("PLAYER_REGEN_DISABLED", function()
+        if self.UI.HideAll() then
+            self:Print("Combat detected, closing all windows.")
+        end
+    end)
     self:RegisterEvent("ACTIVE_DELVE_DATA_UPDATE", function()
         addon:checkIfIsTrackedInstance()
         addon:RegisterEvent("SPELL_CONFIRMATION_TIMEOUT", function(event, spellID)
