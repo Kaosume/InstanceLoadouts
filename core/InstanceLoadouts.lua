@@ -189,14 +189,39 @@ function addon:generateDefaults()
     return db
 end
 
-function addon:PLAYER_TARGET_CHANGED()
-    if not self.db.global.targetTimeoutEnabled then return end
-    local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
-    if instanceType ~= "raid" then return end
-    for _, raidInfo in ipairs(self.instanceGroups.Raid) do
-        if raidInfo.instanceID == instanceID then
-            self:checkIfTrackedTarget(instanceID, raidInfo.encounterIDs)
-            return
+do
+    local locales =
+    {
+        ["enUS"] = {
+            ["Court of the Phoenix"] = 3182,
+            ["The Sunwell"] = 3183
+        },
+        ["ruRU"] = {
+            ["Двор феникса"] = 3182,
+            ["Солнечный Колодец"] = 3183,
+        }
+    }
+    local L = locales[GetLocale()]
+    function addon:ZONE_CHANGED()
+        local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
+        if instanceType ~= "raid" then return end
+        for _, raidInfo in ipairs(self.instanceGroups.Raid) do
+            if raidInfo.instanceID == instanceID then
+                if L[GetSubZoneText()] then
+                    local bossName, isKilled
+                    local _, _, encountersTotal, _ = GetInstanceLockTimeRemaining()
+                    for i = 1, encountersTotal do
+                        bossName, _, isKilled = GetInstanceLockTimeRemainingEncounter(i)
+                        if bossName and bossName == raidInfo.encounterIDs[i + 1].encounterName then
+                            break
+                        end
+                    end
+                    if not isKilled then
+                        self:showLoadoutForInstance(instanceID .. " Encounter", L[GetSubZoneText()])
+                    end
+                end
+                return
+            end
         end
     end
 end
@@ -267,8 +292,8 @@ function addon:InitData()
             self:PLAYER_ENTERING_WORLD(isLogin, isReload)
         end)
     end)
-    self:RegisterEvent("PLAYER_TARGET_CHANGED", function()
-        self:PLAYER_TARGET_CHANGED()
+    self:RegisterEvent("ZONE_CHANGED", function()
+        self:ZONE_CHANGED()
     end)
     self:RegisterEvent("PLAYER_REGEN_DISABLED", function()
         if self.UI.HideAll() then
@@ -330,7 +355,7 @@ SLASH_INSTANCELOADOUTS1 = "/instanceloadouts"
 SLASH_INSTANCELOADOUTS2 = "/il"
 SlashCmdList["INSTANCELOADOUTS"] = function(msg)
     local command = strlower(msg or "")
-    
+
     if command == "config" or command == "c" then
         addon:toggleConfig()
     elseif command == "changelog" or command == "log" then
